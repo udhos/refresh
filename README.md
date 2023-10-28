@@ -29,6 +29,8 @@ See example: [examples/refresh-example/main.go](examples/refresh-example/main.go
 
 2. Run refresh-example
 
+Build and run:
+
     go install ./examples/refresh-example
     refresh-example
 
