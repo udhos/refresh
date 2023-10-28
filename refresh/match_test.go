@@ -25,6 +25,7 @@ var testMatchTable = []testMatch{
 	{"feature-toggles:**", "", false},
 	{"cartao:branco-gateway:**", "", false},
 	{"cartao-branco-gateway:**", "", false},
+	{"cartao-branco-gateway:**", "#", true},
 }
 
 // go test -v ./refresh -run=TestMatch

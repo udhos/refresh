@@ -36,6 +36,9 @@ type Refresh struct {
 // notification: "feature:toggles:**" "cartao:branco-gateway:**"
 // application:  "feature-toggles"    "cartao-branco-gateway"
 func DefaultMatchApplication(notification, application string) bool {
+	if application == "#" {
+		return true
+	}
 	notification = strings.TrimSuffix(notification, ":**")
 	notification = strings.Replace(notification, ":", "-", 1)
 	return notification == application
