@@ -33,8 +33,6 @@ type Refresh struct {
 }
 
 // DefaultMatchApplication checks whether a notification matches an application name.
-// notification: "feature:toggles:**" "cartao:branco-gateway:**"
-// application:  "feature-toggles"    "cartao-branco-gateway"
 func DefaultMatchApplication(notification, application string) bool {
 	if application == "#" {
 		return true

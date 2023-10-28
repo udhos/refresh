@@ -11,21 +11,21 @@ type testMatch struct {
 }
 
 var testMatchTable = []testMatch{
-	{"feature:toggles:**", "feature-toggles", true},
-	{"feature-toggles:**", "feature-toggles", true},
-	{"cartao:branco-gateway:**", "cartao-branco-gateway", true},
-	{"cartao-branco-gateway:**", "cartao-branco-gateway", true},
-	{":**", "feature-toggles", false},
-	{":**", "cartao-branco-gateway", false},
-	{"feature:toggles:**", "XXX", false},
-	{"feature-toggles:**", "XXX", false},
-	{"cartao:branco-gateway:**", "XXX", false},
-	{"cartao-branco-gateway:**", "XXX", false},
-	{"feature:toggles:**", "", false},
-	{"feature-toggles:**", "", false},
-	{"cartao:branco-gateway:**", "", false},
-	{"cartao-branco-gateway:**", "", false},
-	{"cartao-branco-gateway:**", "#", true},
+	{"feature:flags:**", "feature-flags", true},
+	{"feature-flags:**", "feature-flags", true},
+	{"badge:color-gateway:**", "badge-color-gateway", true},
+	{"badge-color-gateway:**", "badge-color-gateway", true},
+	{":**", "feature-flags", false},
+	{":**", "badge-color-gateway", false},
+	{"feature:flags:**", "XXX", false},
+	{"feature-flags:**", "XXX", false},
+	{"badge:color-gateway:**", "XXX", false},
+	{"badge-color-gateway:**", "XXX", false},
+	{"feature:flags:**", "", false},
+	{"feature-flags:**", "", false},
+	{"badge:color-gateway:**", "", false},
+	{"badge-color-gateway:**", "", false},
+	{"badge-color-gateway:**", "#", true},
 }
 
 // go test -v ./refresh -run=TestMatch
