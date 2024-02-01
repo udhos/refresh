@@ -12,7 +12,15 @@ func TestCloseNotifyChannel(t *testing.T) {
 
 	mock := &amqpMock{}
 
-	r := New("amqp://guest:guest@rabbitmq:5672/", "app", []string{"app"}, debug, mock)
+	o := Options{
+		AmqpURL:      "amqp://guest:guest@rabbitmq:5672/",
+		ConsumerTag:  "app",
+		Applications: []string{"app"},
+		Debug:        debug,
+		AmqpClient:   mock,
+	}
+
+	r := New(o)
 
 	if r == nil {
 		t.Errorf("ugh")
@@ -77,7 +85,15 @@ func TestCloseNotifyConnection(t *testing.T) {
 
 	mock := &amqpMock{}
 
-	r := New("amqp://guest:guest@rabbitmq:5672/", "app", []string{"app"}, debug, mock)
+	o := Options{
+		AmqpURL:      "amqp://guest:guest@rabbitmq:5672/",
+		ConsumerTag:  "app",
+		Applications: []string{"app"},
+		Debug:        debug,
+		AmqpClient:   mock,
+	}
+
+	r := New(o)
 
 	if r == nil {
 		t.Errorf("ugh")

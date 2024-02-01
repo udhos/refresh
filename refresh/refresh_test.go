@@ -12,7 +12,14 @@ func TestCloseRefresh(t *testing.T) {
 
 	debug := true
 
-	r := New("amqp://guest:guest@rabbitmq:5672/", "app", []string{"app"}, debug, nil)
+	o := Options{
+		AmqpURL:      "amqp://guest:guest@rabbitmq:5672/",
+		ConsumerTag:  "app",
+		Applications: []string{"app"},
+		Debug:        debug,
+	}
+
+	r := New(o)
 
 	wait := time.Second
 	t.Logf("giving a time before interrupting the refresh goroutine: %v", wait)
@@ -237,7 +244,15 @@ func TestCloseConsume(t *testing.T) {
 
 	debug := true
 
-	r := New("amqp://guest:guest@rabbitmq:5672/", "app", []string{"app"}, debug, &amqpMock{})
+	o := Options{
+		AmqpURL:      "amqp://guest:guest@rabbitmq:5672/",
+		ConsumerTag:  "app",
+		Applications: []string{"app"},
+		Debug:        debug,
+		AmqpClient:   &amqpMock{},
+	}
+
+	r := New(o)
 
 	if r == nil {
 		t.Errorf("ugh")
@@ -271,7 +286,15 @@ func TestCloseConsumeWithChannel(t *testing.T) {
 
 	debug := true
 
-	r := New("amqp://guest:guest@rabbitmq:5672/", "app", []string{"app"}, debug, &amqpMock{})
+	o := Options{
+		AmqpURL:      "amqp://guest:guest@rabbitmq:5672/",
+		ConsumerTag:  "app",
+		Applications: []string{"app"},
+		Debug:        debug,
+		AmqpClient:   &amqpMock{},
+	}
+
+	r := New(o)
 
 	if r == nil {
 		t.Errorf("ugh")

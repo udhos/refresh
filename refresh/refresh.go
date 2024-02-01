@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -14,22 +15,51 @@ import (
 
 // Refresh holds data for worker that reads events from amqp and delivers applications found in channel `Refresh.C`.
 type Refresh struct {
-	amqpURL           string
-	applications      []string
-	consumerTag       string
-	debug             bool
-	dialTimeout       time.Duration
-	dialRetryInterval time.Duration
-	C                 chan string // Channel C delivers applications names found in events.
-	done              chan struct{}
-	amqpClient        amqpEngine
-	matchAppFunc      func(notification, application string) bool
+	options Options
+
+	C            chan string // Channel C delivers applications names found in events.
+	done         chan struct{}
+	matchAppFunc func(notification, application string) bool
 
 	lock   sync.Mutex
 	closed bool
 	exited bool
 
 	statCountConnections int
+}
+
+// Options specify options.
+type Options struct {
+	// AmqpURL defines the AMQP server connection URL like "amqp://guest:guest@rabbitmq:5672/".
+	AmqpURL string
+
+	// Applications should be set to []string{"#"} to receive all refresh notifications.
+	Applications []string
+
+	ConsumerTag string
+	Debug       bool
+
+	// AmqpClient allows the caller to plug in a custom AMQP client.
+	// If unspecified, defaults to DefaultAmqpClient.
+	AmqpClient amqpEngine
+
+	// QueueName forces the queue name.
+	// If QueueName is specified, it forces the queue name, and QueuePrefix is ignored.
+	// If both QueueName and QueuePrefix are undefined, the hostname is used as prefix
+	// to generate a random queue name.
+	QueueName string
+
+	// QueuePrefix generates a random queue name with QueuePrefix as prefix, if QueueName is not specified.
+	// If QueueName is specified, it forces the queue name, and QueuePrefix is ignored.
+	// If both QueueName and QueuePrefix are undefined, the hostname is used as prefix
+	// to generate a random queue name.
+	QueuePrefix string
+
+	// DialTimeout defaults to 10 seconds if unspecified.
+	DialTimeout time.Duration
+
+	// DialRetryInterval defaults to 5 seconds if unspecified.
+	DialRetryInterval time.Duration
 }
 
 // DefaultMatchApplication checks whether a notification matches an application name.
@@ -42,25 +72,31 @@ func DefaultMatchApplication(notification, application string) bool {
 	return notification == application
 }
 
+// DefaultAmqpClient is the AMQP client used when Options.AmqpClient is unspecified.
+var DefaultAmqpClient = &amqpReal{}
+
 // New spawns a Refresh worker that reads events from amqp and delivers applications found in channel `Refresh.C`.
-func New(amqpURL, consumerTag string, applications []string, debug bool, engine amqpEngine) *Refresh {
-	if len(applications) == 0 {
+func New(options Options) *Refresh {
+	if len(options.Applications) == 0 {
 		log.Panicln("refresh.New: slice applications must be non-empty")
 	}
-	r := &Refresh{
-		amqpURL:           amqpURL,
-		applications:      applications,
-		debug:             debug,
-		C:                 make(chan string),
-		dialTimeout:       10 * time.Second,
-		dialRetryInterval: 5 * time.Second,
-		consumerTag:       consumerTag,
-		done:              make(chan struct{}),
-		amqpClient:        engine,
+
+	if options.AmqpClient == nil {
+		options.AmqpClient = DefaultAmqpClient
 	}
 
-	if r.amqpClient == nil {
-		r.amqpClient = &amqpReal{}
+	if options.DialTimeout == 0 {
+		options.DialTimeout = 10 * time.Second
+	}
+
+	if options.DialRetryInterval == 0 {
+		options.DialRetryInterval = 5 * time.Second
+	}
+
+	r := &Refresh{
+		options: options,
+		C:       make(chan string),
+		done:    make(chan struct{}),
 	}
 
 	if r.matchAppFunc == nil {
@@ -68,6 +104,7 @@ func New(amqpURL, consumerTag string, applications []string, debug bool, engine 
 	}
 
 	go serve(r)
+
 	return r
 }
 
@@ -110,7 +147,7 @@ func serve(r *Refresh) {
 		serveOnce(r, i, begin)
 		log.Printf("serve connCount=%d uptime=%v: will restart amqp connection", i, time.Since(begin))
 	}
-	if r.debug {
+	if r.options.Debug {
 		log.Print("refresh.serve: refresh closed, exiting...")
 	}
 
@@ -119,7 +156,7 @@ func serve(r *Refresh) {
 	r.lock.Lock()
 	r.exited = true
 	r.lock.Unlock()
-	if r.debug {
+	if r.options.Debug {
 		log.Print("refresh.serve: refresh closed, exiting...done")
 	}
 }
@@ -144,52 +181,65 @@ func newUID() string {
 	}
 }
 
+func getQueueName(queueName, queuePrefix string) string {
+	const me = "getQueueName"
+	if queueName != "" {
+		return queueName
+	}
+	if queuePrefix != "" {
+		return queuePrefix + "." + newUID()
+	}
+	hostname, errHost := os.Hostname()
+	if errHost != nil {
+		log.Fatalf("%s: hostname: %v", me, errHost)
+	}
+	return hostname + "." + newUID()
+}
+
 // serve one amqp connection
 func serveOnce(r *Refresh, connCount int, begin time.Time) {
 
 	const me = "refresh.serveOne"
 
-	const queuePrefix = "config-event-queue"
-
 	exchangeName := "springCloudBus"
 	exchangeType := "topic"
 
-	queue := queuePrefix + "." + newUID()
+	queue := getQueueName(r.options.QueueName, r.options.QueuePrefix)
 
 	log.Printf("%s: connection count:    %d", me, connCount)
-	log.Printf("%s: amqp URL:            %s", me, r.amqpURL)
+	log.Printf("%s: amqp URL:            %s", me, r.options.AmqpURL)
 	log.Printf("%s: exchangeName:        %s", me, exchangeName)
 	log.Printf("%s: exchangeType:        %s", me, exchangeType)
 	log.Printf("%s: queue:               %s", me, queue)
-	log.Printf("%s: consumerTag:         %s", me, r.consumerTag)
-	log.Printf("%s: applications:        %v", me, r.applications)
-	log.Printf("%s: dial timeout:        %v", me, r.dialTimeout)
-	log.Printf("%s: dial retry interval: %v", me, r.dialRetryInterval)
-	log.Printf("%s: debug:               %t", me, r.debug)
+	log.Printf("%s: consumerTag:         %s", me, r.options.ConsumerTag)
+	log.Printf("%s: applications:        %v", me, r.options.Applications)
+	log.Printf("%s: dial timeout:        %v", me, r.options.DialTimeout)
+	log.Printf("%s: dial retry interval: %v", me, r.options.DialRetryInterval)
+	log.Printf("%s: debug:               %t", me, r.options.Debug)
 
-	conn := r.amqpClient.dial(r.isClosed, r.amqpURL, r.dialRetryInterval, r.dialTimeout)
+	conn := r.options.AmqpClient.dial(r.isClosed, r.options.AmqpURL, r.options.DialRetryInterval, r.options.DialTimeout)
 	if conn == nil {
 		log.Printf("%s: dial failed, refresh must have been closed by caller", me)
 		return
 	}
-	defer r.amqpClient.closeConn(conn)
+	defer r.options.AmqpClient.closeConn(conn)
 
 	connNotifyClose := make(chan *amqp.Error, 1)
-	r.amqpClient.connectionNotifyClose(conn, connNotifyClose)
+	r.options.AmqpClient.connectionNotifyClose(conn, connNotifyClose)
 
-	ch, err := r.amqpClient.channel(conn)
+	ch, err := r.options.AmqpClient.channel(conn)
 	if err != nil {
 		log.Printf("%s: failed to open channel: %v", me, err)
 		return
 	}
-	defer r.amqpClient.closeChannel(ch)
+	defer r.options.AmqpClient.closeChannel(ch)
 
 	chanNotifyClose := make(chan *amqp.Error, 1)
-	r.amqpClient.channelNotifyClose(ch, chanNotifyClose)
+	r.options.AmqpClient.channelNotifyClose(ch, chanNotifyClose)
 
 	{
 		log.Printf("%s: got channel, declaring exchange: exchangeName=%s exchangeType=%s", me, exchangeName, exchangeType)
-		err := r.amqpClient.exchangeDeclare(ch, exchangeName, exchangeType)
+		err := r.options.AmqpClient.exchangeDeclare(ch, exchangeName, exchangeType)
 		if err != nil {
 			log.Printf("%s: failed to declare exchange: %v", me, err)
 			return
@@ -197,7 +247,7 @@ func serveOnce(r *Refresh, connCount int, begin time.Time) {
 	}
 
 	log.Printf("%s: declared exchange, declaring queue: %s", me, queue)
-	q, err := r.amqpClient.queueDeclare(ch, queue)
+	q, err := r.options.AmqpClient.queueDeclare(ch, queue)
 	if err != nil {
 		log.Printf("%s: failed to declare queue: %v", me, err)
 		return
@@ -207,26 +257,26 @@ func serveOnce(r *Refresh, connCount int, begin time.Time) {
 		const routingKey = "#"
 		log.Printf("%s: declared queue (%d messages, %d consumers), binding to exchange '%s' with routing key '%s'",
 			me, q.Messages, q.Consumers, exchangeName, routingKey)
-		err := r.amqpClient.queueBind(ch, q.Name, routingKey, exchangeName)
+		err := r.options.AmqpClient.queueBind(ch, q.Name, routingKey, exchangeName)
 		if err != nil {
 			log.Printf("%s: failed to bind queue to exchange: %v", me, err)
 			return
 		}
 	}
 
-	if r.debug {
+	if r.options.Debug {
 		log.Printf("DEBUG %s: entering consume loop", me)
 	}
 
-	msgs, err := r.amqpClient.consume(ch, q.Name, r.consumerTag)
+	msgs, err := r.options.AmqpClient.consume(ch, q.Name, r.options.ConsumerTag)
 	if err != nil {
 		log.Printf("%s: conn=%d uptime=%v: failed to register consumer: %v",
 			me, connCount, time.Since(begin), err)
 		return
 	}
-	defer r.amqpClient.cancel(ch, r.consumerTag)
+	defer r.options.AmqpClient.cancel(ch, r.options.ConsumerTag)
 
-	if r.debug {
+	if r.options.Debug {
 		log.Printf("DEBUG %s: entering delivery loop", me)
 	}
 
@@ -240,7 +290,7 @@ func serveOnce(r *Refresh, connCount int, begin time.Time) {
 				return
 			}
 			msg++
-			if r.debug {
+			if r.options.Debug {
 				log.Printf(
 					"DEBUG %s: conn=%d uptime=%v msg=%d: ConsumerTag=[%s] DeliveryTag=[%v] RoutingKey=[%s] ContentType=[%s] Body='%s'",
 					me,
@@ -253,11 +303,11 @@ func serveOnce(r *Refresh, connCount int, begin time.Time) {
 					d.ContentType,
 					d.Body)
 			}
-			errClose := handleDelivery(r.matchAppFunc, r.isClosed, d.Body, r.applications,
+			errClose := handleDelivery(r.matchAppFunc, r.isClosed, d.Body, r.options.Applications,
 				r.C, r.done,
 				chanNotifyClose,
 				connNotifyClose,
-				r.debug)
+				r.options.Debug)
 			if errClose != nil {
 				log.Printf("%s: NotifyClose: handleDelivery: %v", me, errClose)
 				return
