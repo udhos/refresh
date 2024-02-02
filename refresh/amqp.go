@@ -8,44 +8,45 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-type amqpEngine interface {
-	dial(isClosed func() bool, amqpURL string, sleep, timeout time.Duration) *amqp.Connection
-	closeConn(conn *amqp.Connection) error
-	channel(conn *amqp.Connection) (*amqp.Channel, error)
-	closeChannel(ch *amqp.Channel) error
-	cancel(ch *amqp.Channel, consumerTag string) error
-	exchangeDeclare(ch *amqp.Channel, exchangeName, exchangeType string) error
-	queueDeclare(ch *amqp.Channel, queueName string) (amqp.Queue, error)
-	queueBind(ch *amqp.Channel, queueName, routingKey, exchangeName string) error
-	consume(ch *amqp.Channel, queueName, consumerTag string) (<-chan amqp.Delivery, error)
-	channelNotifyClose(ch *amqp.Channel, receiver chan *amqp.Error) chan *amqp.Error
-	connectionNotifyClose(conn *amqp.Connection, receiver chan *amqp.Error) chan *amqp.Error
+// AmqpEngine defines interface for AMQP client.
+type AmqpEngine interface {
+	Dial(isClosed func() bool, amqpURL string, sleep, timeout time.Duration) *amqp.Connection
+	CloseConn(conn *amqp.Connection) error
+	Channel(conn *amqp.Connection) (*amqp.Channel, error)
+	CloseChannel(ch *amqp.Channel) error
+	Cancel(ch *amqp.Channel, consumerTag string) error
+	ExchangeDeclare(ch *amqp.Channel, exchangeName, exchangeType string) error
+	QueueDeclare(ch *amqp.Channel, queueName string) (amqp.Queue, error)
+	QueueBind(ch *amqp.Channel, queueName, routingKey, exchangeName string) error
+	Consume(ch *amqp.Channel, queueName, consumerTag string) (<-chan amqp.Delivery, error)
+	ChannelNotifyClose(ch *amqp.Channel, receiver chan *amqp.Error) chan *amqp.Error
+	ConnectionNotifyClose(conn *amqp.Connection, receiver chan *amqp.Error) chan *amqp.Error
 }
 
 type amqpReal struct{}
 
-func (a *amqpReal) dial(isClosed func() bool, amqpURL string, sleep, timeout time.Duration) *amqp.Connection {
+func (a *amqpReal) Dial(isClosed func() bool, amqpURL string, sleep, timeout time.Duration) *amqp.Connection {
 	return dial(isClosed, amqpURL, sleep, timeout)
 }
 
-func (a *amqpReal) closeConn(conn *amqp.Connection) error {
+func (a *amqpReal) CloseConn(conn *amqp.Connection) error {
 	return conn.Close()
 }
 
-func (a *amqpReal) channel(conn *amqp.Connection) (*amqp.Channel, error) {
+func (a *amqpReal) Channel(conn *amqp.Connection) (*amqp.Channel, error) {
 	ch, err := conn.Channel()
 	return ch, err
 }
 
-func (a *amqpReal) closeChannel(ch *amqp.Channel) error {
+func (a *amqpReal) CloseChannel(ch *amqp.Channel) error {
 	return ch.Close()
 }
 
-func (a *amqpReal) cancel(ch *amqp.Channel, consumerTag string) error {
+func (a *amqpReal) Cancel(ch *amqp.Channel, consumerTag string) error {
 	return ch.Cancel(consumerTag, false)
 }
 
-func (a *amqpReal) exchangeDeclare(ch *amqp.Channel, exchangeName, exchangeType string) error {
+func (a *amqpReal) ExchangeDeclare(ch *amqp.Channel, exchangeName, exchangeType string) error {
 	err := ch.ExchangeDeclare(
 		exchangeName, // name of the exchange
 		exchangeType, // type
@@ -58,7 +59,7 @@ func (a *amqpReal) exchangeDeclare(ch *amqp.Channel, exchangeName, exchangeType 
 	return err
 }
 
-func (a *amqpReal) queueDeclare(ch *amqp.Channel, queueName string) (amqp.Queue, error) {
+func (a *amqpReal) QueueDeclare(ch *amqp.Channel, queueName string) (amqp.Queue, error) {
 	q, err := ch.QueueDeclare(
 		queueName, // name
 		false,     // durable
@@ -70,7 +71,7 @@ func (a *amqpReal) queueDeclare(ch *amqp.Channel, queueName string) (amqp.Queue,
 	return q, err
 }
 
-func (a *amqpReal) queueBind(ch *amqp.Channel, queueName, routingKey, exchangeName string) error {
+func (a *amqpReal) QueueBind(ch *amqp.Channel, queueName, routingKey, exchangeName string) error {
 	err := ch.QueueBind(
 		queueName,    // name of the queue
 		routingKey,   // bindingKey
@@ -81,7 +82,7 @@ func (a *amqpReal) queueBind(ch *amqp.Channel, queueName, routingKey, exchangeNa
 	return err
 }
 
-func (a *amqpReal) consume(ch *amqp.Channel, queueName, consumerTag string) (<-chan amqp.Delivery, error) {
+func (a *amqpReal) Consume(ch *amqp.Channel, queueName, consumerTag string) (<-chan amqp.Delivery, error) {
 	msgs, err := ch.Consume(
 		queueName,   // queue
 		consumerTag, // consumer
@@ -94,11 +95,11 @@ func (a *amqpReal) consume(ch *amqp.Channel, queueName, consumerTag string) (<-c
 	return msgs, err
 }
 
-func (a *amqpReal) channelNotifyClose(ch *amqp.Channel, receiver chan *amqp.Error) chan *amqp.Error {
+func (a *amqpReal) ChannelNotifyClose(ch *amqp.Channel, receiver chan *amqp.Error) chan *amqp.Error {
 	return ch.NotifyClose(receiver)
 }
 
-func (a *amqpReal) connectionNotifyClose(conn *amqp.Connection, receiver chan *amqp.Error) chan *amqp.Error {
+func (a *amqpReal) ConnectionNotifyClose(conn *amqp.Connection, receiver chan *amqp.Error) chan *amqp.Error {
 	return conn.NotifyClose(receiver)
 }
 
