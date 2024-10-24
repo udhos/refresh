@@ -329,49 +329,49 @@ type amqpMock struct {
 	lock            sync.Mutex
 }
 
-func (a *amqpMock) Dial(isClosed func() bool, amqpURL string, sleep, timeout time.Duration) *amqp.Connection {
+func (a *amqpMock) Dial(_ func() bool, _ string, _, _ time.Duration) *amqp.Connection {
 	return &amqp.Connection{}
 }
 
-func (a *amqpMock) CloseConn(conn *amqp.Connection) error {
+func (a *amqpMock) CloseConn(_ *amqp.Connection) error {
 	return nil
 }
 
-func (a *amqpMock) Channel(conn *amqp.Connection) (*amqp.Channel, error) {
+func (a *amqpMock) Channel(_ *amqp.Connection) (*amqp.Channel, error) {
 	return &amqp.Channel{}, nil
 }
 
-func (a *amqpMock) CloseChannel(ch *amqp.Channel) error {
+func (a *amqpMock) CloseChannel(_ *amqp.Channel) error {
 	return nil
 }
-func (a *amqpMock) Cancel(ch *amqp.Channel, consumerTag string) error {
-	return nil
-}
-
-func (a *amqpMock) ExchangeDeclare(ch *amqp.Channel, exchangeName, exchangeType string) error {
+func (a *amqpMock) Cancel(_ *amqp.Channel, _ string) error {
 	return nil
 }
 
-func (a *amqpMock) QueueDeclare(ch *amqp.Channel, queueName string) (amqp.Queue, error) {
+func (a *amqpMock) ExchangeDeclare(_ *amqp.Channel, _, _ string) error {
+	return nil
+}
+
+func (a *amqpMock) QueueDeclare(_ *amqp.Channel, _ string) (amqp.Queue, error) {
 	return amqp.Queue{}, nil
 }
 
-func (a *amqpMock) QueueBind(ch *amqp.Channel, queueName, routingKey, exchangeName string) error {
+func (a *amqpMock) QueueBind(_ *amqp.Channel, _, _, _ string) error {
 	return nil
 }
 
-func (a *amqpMock) Consume(ch *amqp.Channel, queueName, consumerTag string) (<-chan amqp.Delivery, error) {
+func (a *amqpMock) Consume(_ *amqp.Channel, _, _ string) (<-chan amqp.Delivery, error) {
 	return make(<-chan amqp.Delivery), nil // reading this will block forever
 }
 
-func (a *amqpMock) ChannelNotifyClose(ch *amqp.Channel, receiver chan *amqp.Error) chan *amqp.Error {
+func (a *amqpMock) ChannelNotifyClose(_ *amqp.Channel, receiver chan *amqp.Error) chan *amqp.Error {
 	a.lock.Lock()
 	a.chanNotifyClose = append(a.chanNotifyClose, receiver)
 	a.lock.Unlock()
 	return nil
 }
 
-func (a *amqpMock) ConnectionNotifyClose(conn *amqp.Connection, receiver chan *amqp.Error) chan *amqp.Error {
+func (a *amqpMock) ConnectionNotifyClose(_ *amqp.Connection, receiver chan *amqp.Error) chan *amqp.Error {
 	a.lock.Lock()
 	a.connNotifyClose = append(a.connNotifyClose, receiver)
 	a.lock.Unlock()
