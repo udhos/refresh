@@ -1,8 +1,8 @@
 module github.com/udhos/refresh
 
-go 1.23.8 // minimum
+go 1.24.6 // minimum
 
-toolchain go1.24.2 // preferred
+toolchain go1.25.0 // preferred
 
 require (
 	github.com/rabbitmq/amqp091-go v1.10.0
