@@ -68,8 +68,11 @@ type Options struct {
 
 // DefaultMatchApplication checks whether a notification matches an application name.
 func DefaultMatchApplication(notification, application string) bool {
+	if notification == "**" {
+		return true // the server broadcasted the config
+	}
 	if application == "#" {
-		return true
+		return true // we want to receive all applications
 	}
 	notification = strings.TrimSuffix(notification, ":**")
 	notification = strings.Replace(notification, ":", "-", 1)
@@ -348,7 +351,7 @@ func handleDelivery(matchAppFunc func(notification, app string) bool,
 
 	const me = "handleDelivery"
 
-	event := map[string]interface{}{}
+	event := map[string]any{}
 
 	err := json.Unmarshal(body, &event)
 	if err != nil {

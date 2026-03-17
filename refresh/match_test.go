@@ -26,6 +26,9 @@ var testMatchTable = []testMatch{
 	{"badge:color-gateway:**", "", false},
 	{"badge-color-gateway:**", "", false},
 	{"badge-color-gateway:**", "#", true},
+	{"**", "app", true},
+	{"**", "", true},
+	{"**", "#", true},
 }
 
 // go test -v ./refresh -run=TestMatch
