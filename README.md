@@ -10,18 +10,26 @@
 
 See example: [examples/refresh-example/main.go](examples/refresh-example/main.go)
 
-    import "github.com/udhos/refresh/refresh"
+```golang
+import "github.com/udhos/refresh/refresh"
 
-    amqpURL := "amqp://guest:guest@rabbitmq:5672/"
-    me := filepath.Base(os.Args[0])
-    debug := true
+amqpURL := "amqp://guest:guest@rabbitmq:5672/"
+me := filepath.Base(os.Args[0])
+debug := true
 
-    // "#" means receive notification for all applications
-    refresher := refresh.New(amqpURL, me, []string{"#"}, debug, nil)
+options := refresh.Options{
+    AmqpURL:      amqpURL,
+    ConsumerTag:  me,
+    Applications: []string{"#"}, // "#" means receive notification for all applications
+    Debug:        debug,
+}
 
-    for app := range refresher.C {
-        log.Printf("refresh: received notification for application='%s'", app)
-    }
+refresher := refresh.New(options)
+
+for app := range refresher.C {
+    log.Printf("refresh: received notification for application='%s'", app)
+}
+```
 
 # Test
 

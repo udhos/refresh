@@ -26,11 +26,10 @@ func main() {
 	options := refresh.Options{
 		AmqpURL:      amqpURL,
 		ConsumerTag:  me,
-		Applications: []string{"#"},
+		Applications: []string{"#"}, // "#" means receive notification for all applications
 		Debug:        debug,
 	}
 
-	// "#" means receive notification for all applications
 	refresher := refresh.New(options)
 
 	for app := range refresher.C {
